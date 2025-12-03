@@ -20,8 +20,8 @@ public class DriveAndShootEnhanced extends LinearOpMode {
 
     private ElapsedTime runtime = new ElapsedTime();
 
-    // Driving behavior settings
-    private boolean inverted = false;   // Allows flipping driving direction when needed
+    // Driving, Flywheel and shooting behavior settings
+    private boolean inverted = false;   // Allows flipping intake direction when needed
     private double wheelScale = 1.0;    // Speed scaling (e.g. slow mode)
 
     // Shooter state machine modes
@@ -85,20 +85,25 @@ public class DriveAndShootEnhanced extends LinearOpMode {
         while (opModeIsActive()) {
 
             // ----- DRIVE CONTROL -----
-            // Standard tank/arcade blend: left stick = drive, right stick = turn
-            double drive = -gamepad1.left_stick_y;
-            double turn  =  gamepad1.right_stick_x;
+            // one stick controls like driving video games
+            double y1 = -gamepad1.right_stick_y;
+            double y2 = -gamepad1.left_stick_y;
+            double x1 = -gamepad1.right_stick_x;
+            double x2 = -gamepad1.left_stick_x;
 
-            double leftPower  = (drive + turn) * wheelScale;
-            double rightPower = (drive - turn) * wheelScale;
+            double leftPower  = (y2 + x2) * wheelScale;
+            double rightPower = (y2 - x2) * wheelScale;
 
-            // If driving is inverted, reverse motor output
+            double flywheel = -gamepad1.right_trigger;
+            double intake = -gamepad1.left_trigger;
+
+            // If intake and flywheel is inverted, reverse motor output
             if (!inverted) {
-                leftDrive.setPower(Range.clip(leftPower, -1.0, 1.0));
-                rightDrive.setPower(Range.clip(rightPower, -1.0, 1.0));
+                flywheelBig.setDirection(DcMotorEx.Direction.FORWARD);
+                flywheelSmall.setDirection(DcMotorEx.Direction.FORWARD);
             } else {
-                leftDrive.setPower(Range.clip(-leftPower, -1.0, 1.0));
-                rightDrive.setPower(Range.clip(-rightPower, -1.0, 1.0));
+                flywheelBig.setDirection(DcMotorEx.Direction.REVERSE);
+                flywheelSmall.setDirection(DcMotorEx.Direction.REVERSE);
             }
 
             // ----- DRIVER RPM ADJUSTMENTS (gamepad1) -----
@@ -144,6 +149,14 @@ public class DriveAndShootEnhanced extends LinearOpMode {
                 flywheelPid.onTargetChange(targetRPM);
             }
 
+            if (gamepad1.yWasPressed()) {
+                if (inverted) {
+                    inverted = false;
+                } else {
+                    inverted = true;
+                }
+            }
+
             // B button → manual single shot trigger (existing)
             if (gamepad1.b && shooterState == ShooterState.SPINUP) {
                 // If you want single-shot while at spinup, set shoot state
@@ -171,6 +184,12 @@ public class DriveAndShootEnhanced extends LinearOpMode {
             prevGamepad2Y = gamepad2.y;
             prevGamepad2A = gamepad2.a;
             prevGamepad2B = gamepad2.b;
+
+            // ----- SET MOTOR POWERS -----
+            leftDrive.setPower(Range.clip(leftPower, -1.0, 1.0));
+            rightDrive.setPower(Range.clip(rightPower, -1.0, 1.0));
+            flywheelBig.setPower(flywheel);
+            flywheelSmall.setPower(intake);
 
             // ----- Run shooter state machine (non-blocking auto-shoot integrated) -----
             runShooterStateMachineNonBlocking();
